@@ -98,7 +98,7 @@ function create () {
   platforms.create(w * 0.85, h * 0.45, 'ground').setScale(0.25, 1).refreshBody();
   platforms.create(w * 0.9, h * 0.65, 'ground').setScale(0.5, 1).refreshBody();
   platforms.create(w * 0.83, h * 0.85, 'ground').setScale(0.25, 1).refreshBody();
-  platforms.create(w * 0.85, h * 0.75, 'ground').setScale(0.25, 1).refreshBody();
+  platforms.create(w * 0.86, h * 0.75, 'ground').setScale(0.25, 1).refreshBody();
   platforms.create(w * 0.95, h * 0.55, 'ground').setScale(0.5, 1).refreshBody().setTint(0x0000ff);// Cílová platforma (modrá)
   
   winPlatform = platforms.getChildren().pop(); // Poslední platforma je cílová (modrá)
@@ -193,7 +193,7 @@ function showWinScreen() {
   winGroup = this.add.group([overlay]);
 
   // Text
-  const winText = this.add.text(w*0.85, h/2 - 100, 'Matěj vyhrál!', 
+  const winText = this.add.text(w*0.85, h/2 - 100, 'Jsi vítěz!', 
     { fontSize: '48px', fill: '#FFD700', align: 'center' }).setOrigin(0.5).setStroke('#000', 4);
   winGroup.add(winText);
 
@@ -288,4 +288,5 @@ function update () {
 
   // Aktualizovat stav pro další frame
   wasOnGround = !!onGround;
+
 }
