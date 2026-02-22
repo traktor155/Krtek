@@ -250,13 +250,13 @@ function update () {
 
   // Horizontální pohyb
   if (cursors.left.isDown) {
-    player.setVelocityX(-160);
+    player.setVelocityX(-190);
     player.setFlipX(true);
     if (onGround && player.anims && this.anims.exists('walk') && (!player.anims.currentAnim || player.anims.currentAnim.key !== 'walk')) {
       player.anims.play('walk');
     }
   } else if (cursors.right.isDown) {
-    player.setVelocityX(160);
+    player.setVelocityX(190);
     player.setFlipX(false);
     if (onGround && player.anims && this.anims.exists('walk') && (!player.anims.currentAnim || player.anims.currentAnim.key !== 'walk')) {
       player.anims.play('walk');
@@ -290,3 +290,4 @@ function update () {
   wasOnGround = !!onGround;
 
 }
+
