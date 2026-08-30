@@ -31,28 +31,27 @@ window.addEventListener('resize', () => {
 let player;
 let platforms;
 let cursors;
-let debugText;
 let fpsText;
 let wasOnGround = false;
 let winPlatform;
 let winShown = false;
 let winGroup; // Overlay pro win screen
 
-const KRTECEK_FRAME_W = 145;
-const KRTECEK_FRAME_H = 145;
+const KRTECEK_FRAME_W = 256;
+const KRTECEK_FRAME_H = 256;
 
 // Mapování animací: přizpůsobte rozsahy podle vaší spritesheet
 const KRTECEK_ANIM_MAP = {
   idle:  { start: 0,  end: 3,  frameRate: 2,  repeat: -1 },
-  walk:  { start: 4,  end: 11, frameRate: 4, repeat: -1 },
-  jump:  { start: 12, end: 15, frameRate: 4,  repeat: -1 }
+  walk:  { start: 8,  end: 15, frameRate: 4, repeat: -1 },
+  jump:  { start: 16, end: 19, frameRate: 4,  repeat: -1 }
 };
 
 // Drobná korekce pro vizuální zarovnání nohou s platformou (v pixelech)
 const KRTECEK_GROUND_OFFSET = 1;
-// Trim pro horní a dolní průhledný okraj (v pixelech) - upravte podle spritesheetu
-const KRTECEK_BODY_TRIM_TOP = 1;
-const KRTECEK_BODY_TRIM_BOTTOM = 50;
+// Trim pro horní a dolní průhledný okraj, jako poměr výšky snímku (změřeno na spritesheetu: hlava začíná ~17px, nohy končí ~248px ze 256px)
+const KRTECEK_BODY_TRIM_TOP_RATIO = 17 / 256;
+const KRTECEK_BODY_TRIM_BOTTOM_RATIO = 8 / 256;
 
 function preload () {
   // Logging pro loader: usnadní hledání chyb (filecomplete, loaderror, complete)
@@ -99,21 +98,17 @@ function create () {
   platforms.create(w * 0.9, h * 0.65, 'ground').setScale(0.5, 1).refreshBody();
   platforms.create(w * 0.83, h * 0.85, 'ground').setScale(0.25, 1).refreshBody();
   platforms.create(w * 0.86, h * 0.75, 'ground').setScale(0.25, 1).refreshBody();
-  platforms.create(w * 0.95, h * 0.55, 'ground').setScale(0.5, 1).refreshBody().setTint(0x0000ff);// Cílová platforma (modrá)
-  
-  winPlatform = platforms.getChildren().pop(); // Poslední platforma je cílová (modrá)
-    
+  // Cílová platforma (modrá) - záměrně MIMO skupinu `platforms`, aby s ní hráč nekolidoval
+  // (jinak by ho collider zastavil na hraně a overlap pro výhru by kvůli tomu nikdy nenastal)
+  winPlatform = this.physics.add.staticImage(w * 0.95, h * 0.55, 'ground').setScale(0.5, 1).refreshBody().setTint(0x0000ff);
+
   player = this.physics.add.sprite(w * 0.05, h * 0.9 + KRTECEK_GROUND_OFFSET, 'krtecek');
   player.setBounce(0.1);
   player.setCollideWorldBounds(true);
-  // Rozumné měřítko: nechat responsivní, ale s horním limitem
-  const desiredScale = Phaser.Math.Clamp(w / 800, 0.6, 1.2);
+  // Mírně zmenšeno oproti původní velikosti spritesheetu
+  const desiredScale = 0.7;
   player.setScale(desiredScale);
   player.setOrigin(0.5, 1); // kotvíme u nohou
-  // Vynutit konzistentní zobrazovanou velikost podle rámce, aby animace neměnily výšku
-  const forcedDisplayW = Math.round(KRTECEK_FRAME_W * desiredScale);
-  const forcedDisplayH = Math.round(KRTECEK_FRAME_H * desiredScale);
-  player.setDisplaySize(forcedDisplayW, forcedDisplayH);
 
   //kamera následuje hráče, ale jen horizontálně
   this.cameras.main.startFollow(player, true, 1, 0);
@@ -148,23 +143,24 @@ function create () {
     console.warn('Nelze vytvořit animace pro `krtecek`:', e);
   }
 
-  // Upravit rozměry těla podle display size (lepší kolize)
+  // Upravit rozměry těla podle NATIVNÍ velikosti snímku (Phaser tělo interně násobí aktuálním scaleX/scaleY,
+  // takže sem nesmí jít už přeškálované displayWidth/Height - jinak se škáluje podruhé)
   if (player.body) {
-    // Použít skutečnou zobrazovanou velikost (konzistentní díky setDisplaySize)
-    const dispW = player.displayWidth || Math.round(KRTECEK_FRAME_W * player.scaleX);
-    const dispH = player.displayHeight || Math.round(KRTECEK_FRAME_H * player.scaleY);
-    // Zmenšit výšku těla tak, aby nezahrnovala průhledné okraje ve spritesheetu
-    const bw = Math.round(dispW * 0.5);
-    // Odečíst horní i dolní trim od těla
-    let bh = Math.round(dispH * 0.75) - (KRTECEK_BODY_TRIM_TOP + KRTECEK_BODY_TRIM_BOTTOM);
-    if (bh < 8) bh = Math.max(8, Math.round(dispH * 0.5));
+    const nativeW = KRTECEK_FRAME_W;
+    const nativeH = KRTECEK_FRAME_H;
+    const bw = Math.round(nativeW * 0.5);
+    // Tělo sahá od horního po dolní viditelný okraj krtka (hlava -> nohy)
+    const trimTop = Math.round(nativeH * KRTECEK_BODY_TRIM_TOP_RATIO);
+    const trimBottom = Math.round(nativeH * KRTECEK_BODY_TRIM_BOTTOM_RATIO);
+    let bh = nativeH - trimTop - trimBottom;
+    if (bh < 8) bh = Math.max(8, Math.round(nativeH * 0.5));
     // Vypočítat horizontální offset relativně k originX (lepší zarovnání pokud mají framy levý padding)
     const originX = (typeof player.originX === 'number') ? player.originX : 0.5;
-    let ox = Math.round(dispW * originX - bw / 2);
-    // Oříznout do rozsahu [0, dispW - bw]
-    ox = Math.max(0, Math.min(ox, Math.max(0, dispW - bw)));
-    // Offset tak, aby spodní okraj těla ležel KRTECEK_BODY_TRIM_BOTTOM nad spodním okrajem sprite
-    let oy = Math.round(dispH - KRTECEK_BODY_TRIM_BOTTOM - bh);
+    let ox = Math.round(nativeW * originX - bw / 2);
+    // Oříznout do rozsahu [0, nativeW - bw]
+    ox = Math.max(0, Math.min(ox, Math.max(0, nativeW - bw)));
+    // Offset tak, aby spodní okraj těla ležel trimBottom nad spodním okrajem sprite
+    let oy = Math.round(nativeH - trimBottom - bh);
     if (oy < 0) oy = 0;
     player.body.setSize(bw, bh);
     player.body.setOffset(ox, oy);
@@ -235,55 +231,42 @@ function update () {
   );
 
   // Logování přistání / startu skoku při zapnutém debug režimu
-  try {
-    const debugOn = this.physics && this.physics.world && this.physics.world.drawDebug;
-    if (debugOn) {
-      const bodyInfo = player && player.body ? { x: Math.round(player.body.x), y: Math.round(player.body.y), w: Math.round(player.body.width), h: Math.round(player.body.height) } : null;
-      if (!onGround && wasOnGround) {
-        console.log('Jump start - body:', bodyInfo, 'player.y:', Math.round(player.y));
-      }
-      if (onGround && !wasOnGround) {
-        console.log('Landed - body:', bodyInfo, 'player.y:', Math.round(player.y));
-      }
+  const debugOn = this.physics.world.drawDebug;
+  if (debugOn) {
+    const bodyInfo = { x: Math.round(player.body.x), y: Math.round(player.body.y), w: Math.round(player.body.width), h: Math.round(player.body.height) };
+    if (!onGround && wasOnGround) {
+      console.log('Jump start - body:', bodyInfo, 'player.y:', Math.round(player.y));
     }
-  } catch (e) { /* ignore logging errors */ }
+    if (onGround && !wasOnGround) {
+      console.log('Landed - body:', bodyInfo, 'player.y:', Math.round(player.y));
+    }
+  }
 
   // Horizontální pohyb
   if (cursors.left.isDown) {
     player.setVelocityX(-190);
     player.setFlipX(true);
-    if (onGround && player.anims && this.anims.exists('walk') && (!player.anims.currentAnim || player.anims.currentAnim.key !== 'walk')) {
-      player.anims.play('walk');
-    }
+    if (onGround) player.anims.play('walk', true);
   } else if (cursors.right.isDown) {
     player.setVelocityX(190);
     player.setFlipX(false);
-    if (onGround && player.anims && this.anims.exists('walk') && (!player.anims.currentAnim || player.anims.currentAnim.key !== 'walk')) {
-      player.anims.play('walk');
-    }
+    if (onGround) player.anims.play('walk', true);
   } else {
     player.setVelocityX(0);
-    if (onGround && player.anims && this.anims.exists('idle') && (!player.anims.currentAnim || player.anims.currentAnim.key !== 'idle')) {
-      player.anims.play('idle');
-    }
+    if (onGround) player.anims.play('idle', true);
   }
 
   // Pokud je ve vzduchu, přehraj jump animaci (přepisuje walk/idle)
   if (!onGround) {
-    if (player.anims && this.anims.exists('jump') && (!player.anims.currentAnim || player.anims.currentAnim.key !== 'jump')) {
-      player.anims.play('jump');
-    }
+    player.anims.play('jump', true);
   }
 
   // Skok – jen když stojí na zemi
   if (cursors.up.isDown && onGround) {
     player.setVelocityY(-450);
-    try {
-      const debugOn = this.physics && this.physics.world && this.physics.world.drawDebug;
-      if (debugOn && player && player.body) {
-        console.log('Jump triggered - before velocity set, body:', { x: Math.round(player.body.x), y: Math.round(player.body.y), w: Math.round(player.body.width), h: Math.round(player.body.height), frame: player.frame ? player.frame.name : null });
-      }
-    } catch (e) {}
+    if (debugOn) {
+      console.log('Jump triggered - before velocity set, body:', { x: Math.round(player.body.x), y: Math.round(player.body.y), w: Math.round(player.body.width), h: Math.round(player.body.height), frame: player.frame.name });
+    }
   }
 
   // Aktualizovat stav pro další frame
