@@ -66,7 +66,7 @@ function preload () {
 
   // Načíst obrazec země (externí zdroj) a spritesheet Krtečka
   this.load.image('ground', 'https://labs.phaser.io/assets/sprites/platform.png');
-  this.load.spritesheet('krtecek', 'assets/krtek_spritesheet8.png', { frameWidth: KRTECEK_FRAME_W, frameHeight: KRTECEK_FRAME_H });
+  this.load.spritesheet('krtecek', 'assets/1krtek_spritesheet.png', { frameWidth: KRTECEK_FRAME_W, frameHeight: KRTECEK_FRAME_H });
 }
 
 function create () {
