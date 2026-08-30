@@ -43,9 +43,9 @@ const KRTECEK_FRAME_H = 145;
 
 // Mapování animací: přizpůsobte rozsahy podle vaší spritesheet
 const KRTECEK_ANIM_MAP = {
-  idle:  { start: 21,  end: 24,  frameRate: 2,  repeat: -1 },
-  walk:  { start: 0,  end: 9, frameRate: 4, repeat: -1 },
-  jump:  { start: 11, end: 19, frameRate: 4,  repeat: -1 }
+  idle:  { start: 0,  end: 3,  frameRate: 2,  repeat: -1 },
+  walk:  { start: 4,  end: 11, frameRate: 4, repeat: -1 },
+  jump:  { start: 12, end: 15, frameRate: 4,  repeat: -1 }
 };
 
 // Drobná korekce pro vizuální zarovnání nohou s platformou (v pixelech)
